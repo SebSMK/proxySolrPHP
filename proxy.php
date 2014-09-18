@@ -51,9 +51,7 @@ function solr_proxy_main() {
 		$numfound = 0;
 		
 		if (isset($_GET['prev_query'])) {
-			$params = array();
-			$params['start'] = 0;
-			$params['rows'] = 12;
+			$params = array();			
 			$params['q'] = '*:*';
 			$keys = '';
 			$core = '';
@@ -99,41 +97,41 @@ function solr_proxy_main() {
 
 			$fq = array();
 			$q = array();
-		
-			// process q
-			if($keys <> ''){
-				$q = explode(",", $keys);
-				// remove default 'q' value
-				if(($key = array_search($q_default, $q)) !== false) {
-					unset($q[$key]);
-				}
-				array_filter($q);
-			};
-		
-			// process fq
-			if(isset($params['fq'])){
-				$fq = $params['fq'];
-				// remove 'tag' facet
-				$matches = array_filter($fq, function($var) use ($fq_tag) {
-					return preg_match("/\b$fq_tag\b/i", $var);
-				});
-				foreach ($matches as $key => $value){
-					unset($fq[$key]);
+
+			// proceed only if 'start' param was null ('start' is set when the user uses pagination in website, and we want to avoid duplication on search string)
+			if(!isset($params['start'])){
+				// process q
+				if($keys <> ''){
+					$q = explode(",", $keys);
+					// remove default 'q' value
+					if(($key = array_search($q_default, $q)) !== false) {
+						unset($q[$key]);
+					}
+					array_filter($q);
 				};
-				array_filter($fq);
-			};
-		
-			if((count($q) + count($fq)) > 0){														
-				$fq_prev = $fq;
-				$q_prev = $q;
+				
+				// process fq
+				if(isset($params['fq'])){
+					$fq = $params['fq'];
+					// remove 'tag' facet
+					$matches = array_filter($fq, function($var) use ($fq_tag) {
+						return preg_match("/\b$fq_tag\b/i", $var);
+					});
+					foreach ($matches as $key => $value){
+						unset($fq[$key]);
+					};
+					array_filter($fq);
+				};
+				
+				if((count($q) + count($fq)) > 0){
+					$fq_prev = $fq;
+					$q_prev = $q;
+				}								
 			}
-		
 		}
 		
 		if (isset($_GET['query'])) {
 			$params = array();
-			$params['start'] = 0;
-			$params['rows'] = 12;
 			$params['q'] = '*:*';
 			$keys = '';
 			$core = '';
@@ -191,68 +189,71 @@ function solr_proxy_main() {
 			/*ררררררררר*/
 			$fq = array();
 			$q = array();
-			 
-			// process q
-			if($keys <> ''){
-				$q = explode(",", $keys);
-				// remove default 'q' value
-				if(($key = array_search($q_default, $q)) !== false) {
-					unset($q[$key]);
-				}
-				array_filter($q);
-			};
-		
-			// process fq
-			if(isset($params['fq'])){
-				$fq = $params['fq'];
-				// remove 'tag' facet
-				$matches = array_filter($fq, function($var) use ($fq_tag) {
-					return preg_match("/\b$fq_tag\b/i", $var);
-				});
-				foreach ($matches as $key => $value){
-					unset($fq[$key]);
+
+			// proceed only if 'start' param was null ('start' is set when the user uses pagination in website, and we want to avoid duplication on search string)
+			if(!isset($params['start'])){
+				// process q
+				if($keys <> ''){
+					$q = explode(",", $keys);
+					// remove default 'q' value
+					if(($key = array_search($q_default, $q)) !== false) {
+						unset($q[$key]);
+					}
+					array_filter($q);
 				};
-				array_filter($fq);
-			};
-			 
-			if((count($q) + count($fq)) > 0){
-				//$solr_search_log = new Apache_Solr_Service('csdev-seb', 8180, '/solr-example/dev_search_log/' . $core);
-		
-				//$document = new Apache_Solr_Document();
-				$document->id = uniqid(); //or something else suitably unique
-		
-				$document->q = $q;
-				$document->facet = $fq;								
-		
-				$document->ip = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ?  $_SERVER['REMOTE_ADDR'] + "-" + $_SERVER['HTTP_X_FORWARDED_FOR'] :  $_SERVER['REMOTE_ADDR'];
-				$document->last_update = gmdate('Y-m-d\TH:i:s\Z', strtotime("now"));
-
-				$document->numfound = $numfound;
 				
-				// user called for detailed view of an artwork?
-				$artwork = "id_s";
-				$matches = array_filter($q, function($var) use ($artwork) {
-					return preg_match("/\b$artwork\b/i", $var);
-				});
-				if (count($matches) > 0 ){	
-
-					if (count($q_prev) > 0)
-						$document->prev_q = $q_prev;
-					
-					if (count($fq_prev) > 0)
-						$document->prev_facet = $fq_prev;					
-					
-					if($picture_url != '')
-						$document->picture_url = $picture_url;
+				// process fq
+				if(isset($params['fq'])){
+					$fq = $params['fq'];
+					// remove 'tag' facet
+					$matches = array_filter($fq, function($var) use ($fq_tag) {
+						return preg_match("/\b$fq_tag\b/i", $var);
+					});
+					foreach ($matches as $key => $value){
+						unset($fq[$key]);
+					};
+					array_filter($fq);
+				};
+				
+				if((count($q) + count($fq)) > 0){
+					//$solr_search_log = new Apache_Solr_Service('csdev-seb', 8180, '/solr-example/dev_search_log/' . $core);
+				
+					//$document = new Apache_Solr_Document();
+					$document->id = uniqid(); //or something else suitably unique
+				
+					$document->q = $q;
+					$document->facet = $fq;
+				
+					$document->ip = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ?  $_SERVER['REMOTE_ADDR'] + "-" + $_SERVER['HTTP_X_FORWARDED_FOR'] :  $_SERVER['REMOTE_ADDR'];
+					$document->last_update = gmdate('Y-m-d\TH:i:s\Z', strtotime("now"));
+				
+					$document->numfound = $numfound;
+				
+					// user called for detailed view of an artwork?
+					$artwork = "id_s";
+					$matches = array_filter($q, function($var) use ($artwork) {
+						return preg_match("/\b$artwork\b/i", $var);
+					});
+					if (count($matches) > 0 ){
+				
+						if (count($q_prev) > 0)
+							$document->prev_q = $q_prev;
+							
+						if (count($fq_prev) > 0)
+							$document->prev_facet = $fq_prev;
+							
+						if($picture_url != '')
+							$document->picture_url = $picture_url;
+					}
+				
+				
+					$solr_search_log->addDocument($document); 	//if you're going to be adding documents in bulk using addDocuments with an array of documents is faster
+					//$solr_search_log->deleteByQuery('*:*');
+					$solr_search_log->commit();
+				
+					//echo 'ok';
 				}
-								
-		
-				$solr_search_log->addDocument($document); 	//if you're going to be adding documents in bulk using addDocuments with an array of documents is faster
-				//$solr_search_log->deleteByQuery('*:*');
-				$solr_search_log->commit();
-		
-				//echo 'ok';
-			}
+			}						
 		
 			/*ררררררררררר*/
 		
