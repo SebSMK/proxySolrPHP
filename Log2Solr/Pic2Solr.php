@@ -1,6 +1,6 @@
 <?php
 
-class Log2Solr {
+class Pic2Solr {
 	public $server_url;
 	public $file;
 
@@ -14,9 +14,12 @@ class Log2Solr {
 		$lines = array();
 		$extractor = new solr_log_extractor();
 		$extractor->set_file($this->file);
+		//var_dump($extractor->readfile());
+		
 		$saver = new save_to_Solr();
-		$saver->server_setup($this->server_url);
+		$saver->server_setup($this->server_url);		
 		$saver->save($extractor->readfile());
+		
 		printf("Finish proceeding %s<br><br>", $this->file);
 	}
 	
@@ -33,8 +36,8 @@ class Log2Solr {
 class solr_log_extractor
 {	
 	private $file = '';
-	private $pattern = '/solr/prod_all_dk/select?';	
-	private $pattern_en = '/solr/prod_all_en/select?';
+	private $pattern = '/globus';
+	private $caller_pattern = '"http://www.smk.dk/';
 			
 	public function set_file($file) {		
 		$this->file = $file;
@@ -42,46 +45,59 @@ class solr_log_extractor
 	
 	public function readfile() {
 		$lines = array();
+		$i = 0;
 		$file = file($this->file);
-		
 		foreach ($file as $line) {
-			$la = new line_analyzor($line);
+			$la = new line_analyzor($line);	
 			$q = array();
 			$fq = array();
 			$picture_url = '';
-			$language = '';			
-			if ($this->isRequest($la->get_req()) && !$this->isDetailViewReq($la->get_q())){															
-				if($this->isValidData($la->get_q()) || $this->isValidData($la->get_fq())){					
+			$language = '';
+			if ($this->isPicRequest($la)){
+				// find the last request of the same user													 				
+				
+				$last = $this->findLastReq($file, $i, $la->get_ip());
+				if(isset($last)){					
+// 					var_dump($last->get_q());
+// 					var_dump($last->get_fq());
+// 					var_dump($last->get_language());
+					printf("<img src='http://%s%s'>", $la->get_host(), $la->get_req());	
+					$q = $this->isValidData($last->get_q()) ? $last->get_q() : null;
+					$fq = $this->isValidData($last->get_fq()) ? $last->get_fq() : null;					
+					$picture_url = sprintf("http://%s%s", $la->get_host(), $la->get_req());	
+					$language = $this->isValidData($last->get_language()) ? $last->get_language() : null;										
+				}				
+				
+				//if(count($q) + count($fq) > 0){
+				if($this->isValidData($q) || $this->isValidData($fq)){	
 					$data = array();
 					$data['ip'] = $la->get_ip();
 					$data['last_update'] = $la->get_date();
-					if($this->isValidData($la->get_q()))
-						$data['q'] = $la->get_q();
-					if($this->isValidData($la->get_fq()))
-						$data['facet'] = $la->get_fq();					
-					if($this->isValidData($la->get_language()))
-						$data['language'] = $la->get_language();
+					if(count($q) > 0)
+						$data['q'] = $q;
+					if(count($fq) > 0)
+						$data['facet'] = $fq;	
+					if($picture_url != '')
+						$data['picture_url'] = $picture_url;
+					if($language != '')
+						$data['language'] = $language;
 					$data['req'] = $la->get_req();
-						
-					$lines[] = $data;
+					
+					$lines[] = $data;					
 				}
 			}			
-		}
-		
+			
+			$i++;
+		}	
 		return $lines;
 	}
 	
 	/* 
 	 * private 
 	 *  * */
-	private function isRequest($data){
-		return substr( $data, 0, strlen($this->pattern) ) === $this->pattern ||
-		substr( $data, 0, strlen($this->pattern_en) ) === $this->pattern_en;
-	}
-	
-	// call to an artwork's detail view - 'q' param contains 'id_s'
-	private function isDetailViewReq($q){
-		return strpos(implode("", $q), 'id_s') === false ? false : true;
+	private function isPicRequest($la){	
+		return substr( $la->get_req(), 0, strlen($this->pattern) ) === $this->pattern &&
+			   substr( $la->get_caller(), 0, strlen($this->caller_pattern) ) === $this->caller_pattern;				
 	}
 	
 	private function isValidData($data){
@@ -91,26 +107,38 @@ class solr_log_extractor
 			if(is_string($data))
 				return $data != '' ? true : false;
 		}
-	
+		
 		return false;
-	
+		
 	}
 	
-	private function convert_log_time($s)
-	{
-	    $s = preg_replace('#:#', ' ', $s, 1);
-	    $s = str_replace('/', ' ', $s);
-	    if (!$t = strtotime($s)) return FALSE;
-	    return gmdate('Y-m-d\TH:i:s\Z', strtotime(date('c', $t)));
-	}
+	private function findLastReq($file, $i, $ip){
+		$j = 0;
+		$jmax = 50;
+		while($i >= 0 && $j < $jmax){
+			$line = $file[$i];
+			$la = new line_analyzor($line);
+			if($ip == $la->get_ip()){				
+				if(count($la->get_q()) > 0){					
+					if(strpos(implode("", $la->get_q()), 'id_s') === false){						
+						return $la;												
+					}					
+				}								
+			}
+			$i--;
+			$j++;						
+		}	
+
+		return null;
+	}	
+	
 }
 
-
 /*
- *
-* */
+ * 
+ * */
 class line_analyzor{
-
+	
 	private $host;
 	private $ip;
 	private $date;
@@ -119,71 +147,71 @@ class line_analyzor{
 	private $fq;
 	private $caller;
 	private $language;
-	private $line;
+	private $line;	
 	private $solr_pattern = '/solr/prod_all_dk/select?';
 	private $solr_pattern_en = '/solr/prod_all_en/select?';
-
+	
 	public function __construct($line) {
 		$this->line = $line;
-		$this->run_analyse();
+		$this->run_analyse();		
 	}
 
 	public function get_host(){
-		return $this->host;
+		return $this->host;		
 	}
-
+	
 	public function get_ip(){
 		return $this->ip;
 	}
-
+	
 	public function get_date(){
 		return $this->date;
 	}
-
+	
 	public function get_req(){
 		return $this->req;
 	}
-
+	
 	public function get_q(){
 		return $this->q;
 	}
-
+	
 	public function get_fq(){
 		return $this->fq;
-	}
+	}	
 
 	public function get_caller(){
 		return $this->caller;
 	}
-
-	public function get_language(){
+	
+	public function get_language(){		
 		return $this->language;
 	}
-
-	private function run_analyse(){		
+	
+	private function run_analyse(){
 		$parts = explode(' ', $this->line);
 		$this->host = isset($parts[0]) ? $parts[0] : '';
 		$this->ip = isset($parts[1]) ? $parts[1] : '';
 		$this->date = isset($parts[4]) ? $this->convert_log_time(ltrim($parts[4], '[')) : '';
 		$this->req = isset($parts[7]) ? $parts[7] : '';
 		$this->caller = isset($parts[11]) ? $parts[11] : '';
-		// 		var_dump('----------');
-		// 		var_dump($this->req);
-
+// 		var_dump('----------');
+// 		var_dump($this->req);
+		
 		if(substr( $this->req, 0, strlen($this->solr_pattern) ) === $this->solr_pattern)
 			$this->language = 'dk';
 		if(substr( $this->req, 0, strlen($this->solr_pattern_en) ) === $this->solr_pattern_en)
 			$this->language = 'en';
+				
+// 		var_dump($this->language);
+// 		var_dump('********');
 
-		// 		var_dump($this->language);
-		// 		var_dump('********');
-
-		$request_extractor = new solr_request_extractor();
-
-
+		$request_extractor = new solr_request_extractor();		
+		
+		
 		$request_extractor->set_request(str_replace($this->solr_pattern, '', $this->req));
 		$request_extractor->extract_params();
-
+		
 		$this->q = $request_extractor->get_q();
 		$this->fq = $request_extractor->get_fq();
 	}
@@ -194,7 +222,7 @@ class line_analyzor{
 		$s = str_replace('/', ' ', $s);
 		if (!$t = strtotime($s)) return FALSE;
 		return gmdate('Y-m-d\TH:i:s\Z', strtotime(date('c', $t)));
-	}
+	}		
 }
 
 /*
@@ -206,7 +234,6 @@ class solr_request_extractor{
 	private $q = array();
 	private $fq = array();
 	private $start = '';
-
 
 	private function set_q($q){
 		if(isset($q))
@@ -232,7 +259,6 @@ class solr_request_extractor{
 	}
 
 	function extract_params(){
-
 		if($this->req != ''){
 			$q_default = "-(id_s:(*/*) AND category:collections) -(id_s:(*verso) AND category:collections)";
 			$fq_tag = "tag";
@@ -250,7 +276,7 @@ class solr_request_extractor{
 
 			foreach ($pairs as $pair) {
 				if ($pair != ''){
-					//list($key, $value) = explode('=', $pair, 2);
+					//list($key, $value) = explode('=', $pair, 2);					
 					$key = strtok($pair, "=");
 					$value = strtok("=");
 					
@@ -268,10 +294,8 @@ class solr_request_extractor{
 						$params[$key] = $value;
 					}
 				}
-			}
-
-
-			// proceed only if 'start' param was null ('start' is set when the user uses pagination in website, and we want to avoid duplication on search string) 
+			}			
+			 
 			//if(!isset($params['start'])){
 				// process q
 				if($keys <> ''){
@@ -334,11 +358,11 @@ class save_to_Solr{
 		$i = 0;
 		
 		foreach($datas as $data){
+			
 			if (isset($this->solr) && $this->check_data($data))
 			{
-				$document = new Apache_Solr_Document();
-			
-				//var_dump($data);					
+				
+				$document = new Apache_Solr_Document();		
 				
 				$document->id = uniqid();
 					
@@ -346,16 +370,20 @@ class save_to_Solr{
 				$document->last_update = $data['last_update'];
 					
 				if (isset($data['q']) && count($data['q'])> 0)
-					$document->q = $data['q'];
+					$document->prev_q = $data['q'];
 					
 				if (isset($data['facet']) && count($data['facet'])> 0 )
-					$document->facet = $data['facet'];
-
+					$document->prev_facet = $data['facet'];
+				
+				if (isset($data['picture_url'])){
+					$document->picture_url = $data['picture_url'];
+					$document->numfound = 1;
+				}
+				
 				if (isset($data['language']))
 					$document->language = $data['language'];
 				
-				$documents[] = $document; 
-				
+				$documents[] = $document;				
 				$i++;						
 			}										
 		}
@@ -364,7 +392,7 @@ class save_to_Solr{
 			try{
 				$this->solr->addDocuments($documents);				
 				$this->solr->commit();	
-				//var_dump($documents);
+				var_dump($documents);
 				return true;								
 			}
 			catch (Exception $e) {
