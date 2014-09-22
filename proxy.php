@@ -99,7 +99,7 @@ function solr_proxy_main() {
 			$q = array();
 
 			// proceed only if 'start' param was null ('start' is set when the user uses pagination in website, and we want to avoid duplication on search string)
-			if(!isset($params['start'])){
+			//if(!isset($params['start'])){
 				// process q
 				if($keys <> ''){
 					$q = explode(",", $keys);
@@ -127,7 +127,7 @@ function solr_proxy_main() {
 					$fq_prev = $fq;
 					$q_prev = $q;
 				}								
-			}
+			//}
 		}
 		
 		if (isset($_GET['query'])) {
