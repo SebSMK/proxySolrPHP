@@ -231,7 +231,7 @@ class solr_request_extractor{
 			$this->req = $req;
 	}
 
-	function extract_params(){
+	public function extract_params(){
 
 		if($this->req != ''){
 			$q_default = "-(id_s:(*/*) AND category:collections) -(id_s:(*verso) AND category:collections)";
@@ -280,6 +280,8 @@ class solr_request_extractor{
 					if(($key = array_search($q_default, $q)) !== false) {
 						unset($q[$key]);
 					}
+										
+					$q = $this->remove_parasites($q);
 					array_filter($q);
 					$this->set_q($q);
 				};
@@ -301,6 +303,28 @@ class solr_request_extractor{
 				};
 			//}						
 		}
+	}
+	
+	private function remove_parasites($q){
+		$filters = array('artist_name:', '\*:\*');
+		
+		foreach ($filters as $filter){
+			$matches = array_filter($q, function($var) use ($filter) {
+				var_dump('$var');
+				var_dump($var);
+				var_dump('$filter');
+				var_dump($filter);
+				var_dump('res');
+				var_dump(preg_match("/$filter/i", $var));
+				return preg_match("/$filter/i", $var);
+			});
+			foreach ($matches as $key => $value){
+				unset($q[$key]);
+			};
+		}
+		
+		return $q;
+				
 	}
 }
 
