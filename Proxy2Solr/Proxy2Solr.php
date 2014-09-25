@@ -245,6 +245,9 @@ class save_to_Solr{
 				if (isset($data['picture_url']))
 					$document->picture_url = $data['picture_url'];
 				
+				if (isset($data['user']))
+					$document->user = $data['user'];
+				
 
 				$documents[] = $document;
 				

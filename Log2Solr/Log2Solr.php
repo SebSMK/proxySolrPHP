@@ -310,12 +310,12 @@ class solr_request_extractor{
 		
 		foreach ($filters as $filter){
 			$matches = array_filter($q, function($var) use ($filter) {
-				var_dump('$var');
-				var_dump($var);
-				var_dump('$filter');
-				var_dump($filter);
-				var_dump('res');
-				var_dump(preg_match("/$filter/i", $var));
+// 				var_dump('$var');
+// 				var_dump($var);
+// 				var_dump('$filter');
+// 				var_dump($filter);
+// 				var_dump('res');
+// 				var_dump(preg_match("/$filter/i", $var));
 				return preg_match("/$filter/i", $var);
 			});
 			foreach ($matches as $key => $value){

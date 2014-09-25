@@ -102,6 +102,7 @@ class processRequest {
 	
 		$data2Save['id'] = uniqid();
 		$data2Save['ip'] = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ?  $_SERVER['REMOTE_ADDR'] + "-" + $_SERVER['HTTP_X_FORWARDED_FOR'] :  $_SERVER['REMOTE_ADDR'];
+		
 		$data2Save['last_update'] = gmdate('Y-m-d\TH:i:s\Z', strtotime("now"));
 			
 		if($this->isValidData($this->numfound))
@@ -163,22 +164,40 @@ class comm2Solr{
 
 	private $solr_search_pict;
 	private $solr_search_dict;
+	private $solr_search_pict_h4dk;
+	private $solr_search_dict_h4dk;
 	private $solr_collectionspace;
 	
-	public function __construct($solr_url) {
+	public function __construct($solr_url) {				
 		$spliturl = parse_url($solr_url);
+		
 		$host = $spliturl['host'] == 'solr.smk.dk' ? 'solr-02.smk.dk' : $spliturl['host'];
 		$port = $spliturl['host'] == 'solr.smk.dk' ? '8080' : $spliturl['port'];
+		
 		$core_pict = $spliturl['host'] == 'solr.smk.dk' ? 'prod_search_pict' : 'preprod_search_pict';
 		$core_dict = $spliturl['host'] == 'solr.smk.dk' ? 'prod_search_dict' : 'preprod_search_dict';
-		$path = explode("/", trim($spliturl['path'], '/')) ;
+		
+		$path = explode("/", trim($spliturl['path'], '/')) ;				
 		$path_pict = 'solr-stats';
 		$path_dict = 'solr-stats';
+		
+		$path_h4dk_pict = 'solr-h4dk';
+		$path_h4dk_dict = 'solr-h4dk';
+		
 		$core = array_pop($path);
 		$path = implode("/", $path);
 		
 		$this->solr_search_pict = new Apache_Solr_Service($host, $port, '/' . $path_pict . '/' . $core_pict . '/' );
 		$this->solr_search_dict = new Apache_Solr_Service($host, $port, '/' . $path_dict . '/' . $core_dict . '/' );
+		$this->solr_search_pict_h4dk = new Apache_Solr_Service($host, $port, '/' . $path_h4dk_pict . '/' . $core_pict . '/' );
+		$this->solr_search_dict_h4dk = new Apache_Solr_Service($host, $port, '/' . $path_h4dk_dict . '/' . $core_dict . '/' );
+		
+		var_dump($this->solr_search_pict);
+		var_dump($this->solr_search_dict);
+		var_dump($this->solr_search_pict_h4dk);
+		var_dump($this->solr_search_dict_h4dk);
+		
+		
 		$this->solr_collectionspace = new Apache_Solr_Service($host, $port, '/' . $path . '/' . $core . '/' );
 	}
 	
@@ -203,21 +222,41 @@ class comm2Solr{
 			if(isset($data2Save['picture_url'])){
 				//* picture query
 				if(isset($this->solr_search_pict)){
+					$datas[] = $data2Save;
+					
 					$saver = new save_to_Solr();
 					$saver->server_setup($this->solr_search_pict);
-					$datas[] = $data2Save;
 					$saver->save($datas);
 					//$saver->flush_solr(); !!!!!!!!!!!!!!!!!!!!!!!! DELETE THE WHOLE SOLR!!!!!!!!!!!!!!!
+
+					/*** H4DK **/
+					$data2Save['user'] = $this->xor_this($data2Save['ip']); 
+					var_dump($this->xor_this($data2Save['ip']));
+					var_dump($data2Save['user'] );
+					unset($data2Save['ip']);
+					$datas[] = $data2Save;
+					var_dump($datas);
+					$saver->server_setup($this->solr_search_pict_h4dk);
+					$saver->save($datas);
 				}	
 				
 			}else{
 				//* word query
 				if(isset($this->solr_search_dict)){
-					$saver = new save_to_Solr();
-					$saver->server_setup($this->solr_search_dict);
 					$datas[] = $data2Save;
+										
+					$saver = new save_to_Solr();
+					$saver->server_setup($this->solr_search_dict);					
 					$saver->save($datas);
 					//$saver->flush_solr(); !!!!!!!!!!!!!!!!!!!!!!!! DELETE THE WHOLE SOLR!!!!!!!!!!!!!!!
+					
+					/*** H4DK **/
+					$data2Save['user'] = $this->xor_this($data2Save['ip']);
+					var_dump($this->xor_this($data2Save['ip']));
+					unset($data2Save['ip']);
+					$datas[] = $data2Save;
+					$saver->server_setup($this->solr_search_dict_h4dk);
+					$saver->save($datas);
 				}								
 			}						
 		}
@@ -225,6 +264,18 @@ class comm2Solr{
 			//die($e->__toString());
 			return ($e->__toString());
 		}
+	}
+	
+	
+	private function xor_this($text) {
+	
+		$key = '123457';
+		$i = 0;
+		$encrypted = '';
+		foreach (str_split($text) as $char) {
+			$encrypted .= chr(ord($char) ^ ord($key{$i++ % strlen($key)}));
+		}
+		return base64_encode($encrypted);
 	}
 }
 
