@@ -392,7 +392,6 @@ class save_to_Solr{
 			try{
 				$this->solr->addDocuments($documents);				
 				$this->solr->commit();	
-				var_dump($documents);
 				return true;								
 			}
 			catch (Exception $e) {

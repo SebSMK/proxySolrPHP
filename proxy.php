@@ -191,13 +191,6 @@ class comm2Solr{
 		$this->solr_search_dict = new Apache_Solr_Service($host, $port, '/' . $path_dict . '/' . $core_dict . '/' );
 		$this->solr_search_pict_h4dk = new Apache_Solr_Service($host, $port, '/' . $path_h4dk_pict . '/' . $core_pict . '/' );
 		$this->solr_search_dict_h4dk = new Apache_Solr_Service($host, $port, '/' . $path_h4dk_dict . '/' . $core_dict . '/' );
-		
-		var_dump($this->solr_search_pict);
-		var_dump($this->solr_search_dict);
-		var_dump($this->solr_search_pict_h4dk);
-		var_dump($this->solr_search_dict_h4dk);
-		
-		
 		$this->solr_collectionspace = new Apache_Solr_Service($host, $port, '/' . $path . '/' . $core . '/' );
 	}
 	
@@ -231,11 +224,8 @@ class comm2Solr{
 
 					/*** H4DK **/
 					$data2Save['user'] = $this->xor_this($data2Save['ip']); 
-					var_dump($this->xor_this($data2Save['ip']));
-					var_dump($data2Save['user'] );
 					unset($data2Save['ip']);
-					$datas[] = $data2Save;
-					var_dump($datas);
+					$datas[] = $data2Save;					
 					$saver->server_setup($this->solr_search_pict_h4dk);
 					$saver->save($datas);
 				}	
@@ -252,7 +242,6 @@ class comm2Solr{
 					
 					/*** H4DK **/
 					$data2Save['user'] = $this->xor_this($data2Save['ip']);
-					var_dump($this->xor_this($data2Save['ip']));
 					unset($data2Save['ip']);
 					$datas[] = $data2Save;
 					$saver->server_setup($this->solr_search_dict_h4dk);
